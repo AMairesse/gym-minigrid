@@ -1,13 +1,15 @@
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
 
+DEFAULT_LIFE_EXPECTANCY = 20
 DEFAULT_ENERGY_PER_SQUARE = 1
 DEFAULT_FOOD_PER_SQUARE = 0.2
 
 class FoodEnv(MiniGridEnv):
     """
-    Simple grid environment, no obstacles, some food available, sparse reward
+    Simple grid environment, no obstacles, some food available, no goal
     Agent has an energy level and must gather food to keep it > 0
+    Reward is progressive, max if agent live to is life expectancy
     """
 
     def __init__(
@@ -18,11 +20,13 @@ class FoodEnv(MiniGridEnv):
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
-        self.agent_energy = DEFAULT_ENERGY_PER_SQUARE * size
+        self.agent_start_energy = DEFAULT_ENERGY_PER_SQUARE * size
+        self.agent_energy = self.agent_start_energy
+        self.agent_life_expectancy = DEFAULT_LIFE_EXPECTANCY
 
         super().__init__(
             grid_size=size,
-            max_steps=4*size*size,
+            max_steps=self.agent_life_expectancy,
             # Set this to True for maximum speed
             see_through_walls=True
         )
@@ -31,7 +35,10 @@ class FoodEnv(MiniGridEnv):
         super().reset()
 
         # Set energy level back to default
-        self.agent_energy = DEFAULT_ENERGY_PER_SQUARE * (self.width + self.height) // 2
+        self.agent_energy = self.agent_start_energy
+
+    def _reward(self):
+        return self.step_count / self.agent_life_expectancy
 
     def _gen_grid(self, width, height):
         # Create an empty grid
@@ -39,9 +46,6 @@ class FoodEnv(MiniGridEnv):
 
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
-
-        # Place a goal square in the bottom-right corner
-        self.put_obj(Goal(), width - 2, height - 2)
 
         # Place the agent
         if self.agent_start_pos is not None:
@@ -53,25 +57,28 @@ class FoodEnv(MiniGridEnv):
         # Place some food objects
         nb_food = int(((width + height) // 2 ) * DEFAULT_FOOD_PER_SQUARE)
         for _ in range(0, nb_food):
-            self.place_obj(Food(energy=self.agent_energy))
+            self.place_obj(Food(energy=self.agent_start_energy))
 
-        self.mission = "get to the green goal square, pickup food to stay alive"
+        self.mission = f"Pickup food to stay alive, make it to {self.agent_life_expectancy} steps"
 
     def step(self, action):
         obs, reward, done, info = MiniGridEnv.step(self, action)
 
-        if not done:
-            if self.carrying:
-                if self.carrying.type == 'food':
-                    self.agent_energy += self.carrying.energy
-                    self.carrying = None
+        if self.carrying:
+            if self.carrying.type == 'food':
+                self.agent_energy += self.carrying.energy
+                self.carrying = None
 
-            if self.agent_energy == 0:
-                reward = 0
-                done = True
-            else:
-                self.agent_energy += -1
-            info["agent_energy"] = self.agent_energy
+        if self.steps_remaining == 0 and self.agent_energy > 0.0:
+            done = True
+
+        if self.agent_energy <= 0.0:
+            done = True
+        else:
+            self.agent_energy += -1.0
+
+        reward = self._reward()
+        info["agent_energy"] = self.agent_energy
 
         return obs, reward, done, info
 
