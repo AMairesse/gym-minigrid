@@ -21,7 +21,6 @@ class FoodEnv(MiniGridEnv):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
         self.agent_start_energy = DEFAULT_ENERGY_PER_SQUARE * size
-        self.agent_energy = self.agent_start_energy
         self.agent_life_expectancy = DEFAULT_LIFE_EXPECTANCY
 
         super().__init__(
@@ -30,12 +29,6 @@ class FoodEnv(MiniGridEnv):
             # Set this to True for maximum speed
             see_through_walls=True
         )
-
-    def reset(self, ):
-        super().reset()
-
-        # Set energy level back to default
-        self.agent_energy = self.agent_start_energy
 
     def _reward(self):
         return self.step_count / self.agent_life_expectancy
@@ -53,6 +46,9 @@ class FoodEnv(MiniGridEnv):
             self.agent_dir = self.agent_start_dir
         else:
             self.place_agent()
+
+        # Set the starting energy level of the agent
+        self.agent_energy = self.agent_start_energy
 
         # Place some food objects
         nb_food = int(((width + height) // 2 ) * DEFAULT_FOOD_PER_SQUARE)
