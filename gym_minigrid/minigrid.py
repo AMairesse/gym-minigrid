@@ -46,6 +46,7 @@ OBJECT_TO_IDX = {
     'goal'          : 8,
     'lava'          : 9,
     'agent'         : 10,
+    'food'          : 11
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -141,6 +142,8 @@ class WorldObj:
             v = Goal()
         elif obj_type == 'lava':
             v = Lava()
+        elif obj_type == 'food':
+            v = Food()
         else:
             assert False, "unknown object type in decode '%s'" % objType
 
@@ -301,6 +304,17 @@ class Key(WorldObj):
 class Ball(WorldObj):
     def __init__(self, color='blue'):
         super(Ball, self).__init__('ball', color)
+
+    def can_pickup(self):
+        return True
+
+    def render(self, img):
+        fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS[self.color])
+
+class Food(WorldObj):
+    def __init__(self, color='green', energy=5):
+        super(Food, self).__init__('food', color)
+        self.energy = energy
 
     def can_pickup(self):
         return True
@@ -760,6 +774,7 @@ class MiniGridEnv(gym.Env):
             'box'           : 'B',
             'goal'          : 'G',
             'lava'          : 'V',
+            'food'          : 'C'
         }
 
         # Short string for opened door

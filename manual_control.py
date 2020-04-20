@@ -29,6 +29,8 @@ def reset():
 def step(action):
     obs, reward, done, info = env.step(action)
     print('step=%s, reward=%.2f' % (env.step_count, reward))
+    if info != {}:
+        print(info)
 
     if done:
         print('done!')
