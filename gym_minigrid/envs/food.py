@@ -1,9 +1,10 @@
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
 
-DEFAULT_LIFE_EXPECTANCY = 20
-DEFAULT_ENERGY_PER_SQUARE = 1
-DEFAULT_FOOD_PER_SQUARE = 0.2
+DEFAULT_LIFE_EXPECTANCY = 40
+DEFAULT_ENERGY_PER_SQUARE = 2
+DEFAULT_FOODSOURCE_PER_SQUARE = 0.2
+DEFAULT_FOOD_ENERGY = 10
 
 class FoodEnv(MiniGridEnv):
     """
@@ -50,10 +51,10 @@ class FoodEnv(MiniGridEnv):
         # Set the starting energy level of the agent
         self.agent_energy = self.agent_start_energy
 
-        # Place some food objects
-        nb_food = int(((width + height) // 2 ) * DEFAULT_FOOD_PER_SQUARE)
-        for _ in range(0, nb_food):
-            self.place_obj(Food(energy=self.agent_start_energy))
+        # Place some foodsource objects
+        nb_foodsource = int(((width + height) // 2 ) * DEFAULT_FOODSOURCE_PER_SQUARE)
+        for _ in range(0, nb_foodsource):
+            self.place_obj(FoodSource(probability=0.1, energy=DEFAULT_FOOD_ENERGY))
 
         self.mission = f"Pickup food to stay alive, make it to {self.agent_life_expectancy} steps"
 

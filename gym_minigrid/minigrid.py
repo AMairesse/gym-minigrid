@@ -46,7 +46,8 @@ OBJECT_TO_IDX = {
     'goal'          : 8,
     'lava'          : 9,
     'agent'         : 10,
-    'food'          : 11
+    'foodsource'    : 11,
+    'food'          : 12
 }
 
 IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
@@ -108,6 +109,10 @@ class WorldObj:
         """Method to trigger/toggle an action this object performs"""
         return False
 
+    def update(self, env):
+        """Method to update the environment"""
+        return
+
     def encode(self):
         """Encode the a description of this object as a 3-tuple of integers"""
         return (OBJECT_TO_IDX[self.type], COLOR_TO_IDX[self.color], 0)
@@ -142,8 +147,10 @@ class WorldObj:
             v = Goal()
         elif obj_type == 'lava':
             v = Lava()
+        elif obj_type == 'foodsource':
+            v = FoodSource()
         elif obj_type == 'food':
-            v = Food()
+            v = Food(energy=state)
         else:
             assert False, "unknown object type in decode '%s'" % objType
 
@@ -311,13 +318,49 @@ class Ball(WorldObj):
     def render(self, img):
         fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS[self.color])
 
+class FoodSource(WorldObj):
+    def __init__(self, color='green', probability=0.1, energy=10):
+        super(FoodSource, self).__init__('foodsource', color)
+        self.probability = probability
+        self.energy = energy
+
+    def _add_food(self, env):
+        # Check if there is space available
+        free_spots = []
+        min_i = max(0, self.cur_pos[0] - 1)
+        max_i = min(env.grid.width, self.cur_pos[0] + 2)
+        min_j = max(0, self.cur_pos[1] - 1)
+        max_j = min(env.grid.height, self.cur_pos[1] + 2)
+        for i in range(min_i, max_i):
+            for j in range(min_j, max_j):
+                if env.grid.get(i,j) is None and not np.array_equal(env.agent_pos, (i, j)):
+                    free_spots.append([i,j])
+        if free_spots:
+            spot = env._rand_elem(free_spots)
+            env.put_obj(Food(energy=self.energy), spot[0], spot[1])
+        return 
+
+    def update(self, env):
+        # Probability of producing food
+        prob = env._rand_float(0, 1)
+        if prob <= self.probability :
+            self._add_food(env)
+        return
+
+    def render(self, img):
+        fill_coords(img, point_in_circle(0.5, 0.5, 0.5), COLORS[self.color])
+
 class Food(WorldObj):
-    def __init__(self, color='green', energy=5):
+    def __init__(self, color='green', energy=10):
         super(Food, self).__init__('food', color)
         self.energy = energy
 
     def can_pickup(self):
         return True
+
+    def encode(self):
+        """Encode the a description of this object as a 3-tuple of integers"""
+        return (OBJECT_TO_IDX[self.type], COLOR_TO_IDX[self.color], int(self.energy))
 
     def render(self, img):
         fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS[self.color])
@@ -774,7 +817,8 @@ class MiniGridEnv(gym.Env):
             'box'           : 'B',
             'goal'          : 'G',
             'lava'          : 'V',
-            'food'          : 'C'
+            'foodsource'    : 'C',
+            'food'          : 'E'
         }
 
         # Short string for opened door
@@ -1163,6 +1207,13 @@ class MiniGridEnv(gym.Env):
 
         if self.step_count >= self.max_steps:
             done = True
+        else:
+            # Update the environment
+            for j in range(self.grid.height):
+                for i in range(self.grid.width):
+                    c = self.grid.get(i, j)
+                    if c is not None:
+                        c.update(self)
 
         obs = self.gen_obs()
 
